@@ -22,6 +22,19 @@ export default function Page() {
   const frontFileInputRef = useRef<HTMLInputElement>(null)
   const backFileInputRef = useRef<HTMLInputElement>(null)
 
+  function isTypingTarget(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) {
+      return false
+    }
+
+    return (
+      target.isContentEditable ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT"
+    )
+  }
+
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -29,6 +42,34 @@ export default function Page() {
       if (uploadedBackImage) URL.revokeObjectURL(uploadedBackImage)
     }
   }, [uploadedFrontImage, uploadedBackImage])
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.repeat) {
+        return
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return
+      }
+
+      if (event.key.toLowerCase() !== "r") {
+        return
+      }
+
+      if (isTypingTarget(event.target)) {
+        return
+      }
+
+      setIsFlipped((prev) => !prev)
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [])
 
   const handleUpload = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -88,9 +129,17 @@ export default function Page() {
           </KbdGroup>
           <span>or</span>
           <ModeToggle />
+          <span>|</span>
+          <div className="flex items-center justify-center gap-4">
+            <KbdGroup>
+              <Kbd>R</Kbd>
+            </KbdGroup>
+            <span>to rotate</span>
+          </div>
         </div>
-        <span className="scroll-m-20 text-xl font-semibold tracking-tight">
-          Click the card to upload an image front and back
+        <span className="mb-10 scroll-m-20 text-xl font-semibold tracking-tight">
+          Click the card to upload an image front and back. The aspect ratio is
+          3:4.
         </span>
 
         <input
@@ -108,46 +157,38 @@ export default function Page() {
           className="hidden"
         />
 
-        <div className="mt-10 flex items-center justify-center gap-28">
-          <div>
-            <Button onClick={() => setIsFlipped((prev) => !prev)} className="">
-              {isFlipped ? "Show Front" : "Flip Card"}
-            </Button>
-          </div>
-
-          <InteractiveCard
-            backContent={backContent}
-            isFlipped={isFlipped}
-            onFlip={() => setIsFlipped((prev) => !prev)}
+        <InteractiveCard
+          backContent={backContent}
+          isFlipped={isFlipped}
+          onFlip={() => setIsFlipped((prev) => !prev)}
+        >
+          <div
+            onClick={(e) => {
+              e.stopPropagation()
+              frontFileInputRef.current?.click()
+            }}
+            className="group relative flex w-80 cursor-pointer flex-col items-stretch border-0 bg-[#1F2121]"
+            style={{
+              transformStyle: "preserve-3d",
+              transform: "none",
+              opacity: 1,
+            }}
           >
-            <div
-              onClick={(e) => {
-                e.stopPropagation()
-                frontFileInputRef.current?.click()
-              }}
-              className="group relative flex w-80 cursor-pointer flex-col items-stretch border-0 bg-[#1F2121]"
-              style={{
-                transformStyle: "preserve-3d",
-                transform: "none",
-                opacity: 1,
-              }}
-            >
-              <div className="flex-1">
-                <div className="relative aspect-3/4 w-full">
-                  <Image
-                    loading="eager"
-                    className="absolute inset-0 h-full w-full object-cover"
-                    alt="Profile Card"
-                    src={uploadedFrontImage || "/profilecard.png"}
-                    width={675}
-                    height={900}
-                    unoptimized={!!uploadedFrontImage}
-                  />
-                </div>
+            <div className="flex-1">
+              <div className="relative aspect-3/4 w-full">
+                <Image
+                  loading="eager"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  alt="Profile Card"
+                  src={uploadedFrontImage || "/profilecard.png"}
+                  width={675}
+                  height={900}
+                  unoptimized={!!uploadedFrontImage}
+                />
               </div>
             </div>
-          </InteractiveCard>
-        </div>
+          </div>
+        </InteractiveCard>
       </div>
     </div>
   )
